@@ -2,8 +2,8 @@ module Main where
 
 import System.Environment (getArgs)
 
-import CodeGen
-import Parser
+import Text.Templating.Gogh.Compiler.CodeGen
+import Text.Templating.Gogh.Compiler.Parser
 
 main :: IO ()
 main = do

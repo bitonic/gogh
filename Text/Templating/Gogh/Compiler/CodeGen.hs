@@ -1,10 +1,12 @@
-module CodeGen where
+module Text.Templating.Gogh.Compiler.CodeGen
+    ( printTemplates
+    ) where
 
 import Language.Haskell.Exts.Pretty
 import Language.Haskell.Exts.Syntax
 import System.FilePath (takeBaseName)
 
-import Parser
+import Text.Templating.Gogh.Compiler.Parser
 
 genFun :: String -> String -> Exp
 genFun fun module' = Var $ Qual (ModuleName fun) (Ident module')
