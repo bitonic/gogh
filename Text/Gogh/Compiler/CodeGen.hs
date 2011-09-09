@@ -1,4 +1,4 @@
-module Text.Templating.Gogh.Compiler.CodeGen
+module Text.Gogh.Compiler.CodeGen
     ( printTemplates
     ) where
 
@@ -6,12 +6,12 @@ import Language.Haskell.Exts.Pretty
 import Language.Haskell.Exts.Syntax
 import System.FilePath (takeBaseName)
 
-import Text.Templating.Gogh.Compiler.Parser
+import Text.Gogh.Compiler.Parser
 
 genFun :: String -> String -> Exp
 genFun fun module' = Var $ Qual (ModuleName fun) (Ident module')
 showFun, concatFun, emptyFun, mapFun :: Exp
-showFun = genFun "Text.Show" "show"
+showFun = genFun "Text.Gogh.SafeShow" "safeShow"
 concatFun = genFun "Data.Monoid" "mconcat"
 emptyFun = genFun "Data.Monoid" "mzero"
 mapFun = genFun "Data.Functor" "fmap"
@@ -22,7 +22,7 @@ imports loc = map mod' [ "Data.Eq"
                        , "Data.Maybe"
                        , "Data.Monoid"
                        , "Data.Ord"
-                       , "Text.Show"
+                       , "Text.Gogh.SafeShow"
                        ]
   where
     mod' name = ImportDecl loc (ModuleName name) True False Nothing Nothing Nothing

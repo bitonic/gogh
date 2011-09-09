@@ -17,8 +17,13 @@ source-repository head
   type:                 git
   location:             git://github.com/rostayob/gogh.git
 
+Library
+  Build-Depends:        base >= 4 && <5
+  GHC-Options:          -Wall
+  Exposed-Modules:      Text.Gogh.SafeShow
+
 Executable gogh
-  Main-Is:              Text/Templating/Gogh/Compiler/Main.hs
+  Main-Is:              Text/Gogh/Compiler/Main.hs
   Build-Depends:        base >= 4 && < 5
                       , parsec >= 3 && < 4
                       , mtl

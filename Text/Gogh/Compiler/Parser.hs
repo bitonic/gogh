@@ -1,4 +1,4 @@
-module Text.Templating.Gogh.Compiler.Parser
+module Text.Gogh.Compiler.Parser
     ( TmplFile (..), TmplName, Tmpl (..), TmplElement (..)
     , TmplExp (..), TmplBinOp (..), TmplUnOp (..)
     , parseTemplates, parser
@@ -57,8 +57,8 @@ data TmplUnOp = TmplIsJust
 
 operatorTable :: OperatorTable String () Identity TmplExp
 operatorTable = [ [ unary "not" TmplNot
-                  , unary "just" TmplIsJust
-                  , unary "nothing" TmplIsNothing ]
+                  , unary "is" TmplIsJust
+                  , unary "isnt" TmplIsNothing ]
                 , [ binary ">" TmplLess
                   , binary ">=" TmplLessEq
                   , binary "<" TmplGreater
@@ -70,13 +70,13 @@ operatorTable = [ [ unary "not" TmplNot
                 ]
   where
     unary s f = Prefix (try (string s >> spaces1) >> return (TmplUnOp f))
-    binary s f = Infix (try (string s >> spaces1) >> return (TmplBinOp f)) AssocLeft
+    binary s f = Infix (try (string s) >> return (TmplBinOp f)) AssocLeft
 
 spaces1 :: Parser ()
 spaces1 = space >> spaces
 
 reservedWords :: [String]
-reservedWords = ["not", "just", "nothing", "if", "elif", "else", "foreach", "template"]
+reservedWords = ["not", "is", "isnt", "if", "elif", "else", "foreach", "template"]
 
 expr :: Parser TmplExp
 expr = buildExpressionParser operatorTable term
@@ -188,4 +188,3 @@ parser = fmap (uncurry TmplFile) ((,) <$> getSrcLoc <*> many template)
 
 parseTemplates :: String -> IO (Either ParseError TmplFile)
 parseTemplates file = fmap (runP parser () file) $ readFile file
-
