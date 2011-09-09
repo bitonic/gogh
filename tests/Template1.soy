@@ -1,8 +1,15 @@
 
-{template helloName greetingWord name}
+{template helloName greetingWord name insult listOfNames}
   {if nothing greetingWord}
     Hello {name}!
+  {elif insult}
+    Fuck you {name}!
   {else}
     {greetingWord} {name}!
   {/if}
+
+  Also, I'd like to thank
+  {foreach otherName in listOfNames}
+    {otherName}
+  {/foreach}
 {/template}

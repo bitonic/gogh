@@ -70,7 +70,7 @@ genElement (TmplIf (e, elements) elifs else') =
     elifsExp ((e', elements') : elifs') =
       genElement (TmplIf (e', elements') elifs' else')
 genElement (TmplForeach var generator elements) =
-  App (App mapFun foreachFun) (genExp generator)
+  App concatFun (App (App mapFun foreachFun) (genExp generator))
   where
     foreachFun = Lambda undefined [PVar (Ident var)] (genElements elements)
 
@@ -90,12 +90,10 @@ genBinOp TmplGreaterEq = genFun "Data.Ord" "(>=)"
 genBinOp TmplAnd = genFun "Data.Bool" "(&&)"
 genBinOp TmplOr = genFun "Data.Bool" "(||)"
 
-
 genUnOp :: TmplUnOp -> Exp
 genUnOp TmplIsJust = genFun "Data.Maybe" "isJust"
 genUnOp TmplIsNothing = genFun "Data.Maybe" "isNothing"
 genUnOp TmplNot = genFun "Data.Bool" "not"
-
 
 -------------------------------------------------------------
 

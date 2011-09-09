@@ -76,8 +76,7 @@ spaces1 :: Parser ()
 spaces1 = space >> spaces
 
 reservedWords :: [String]
-reservedWords = ["not", "just", "nothing", "if", "elif", "else", "foreach"
-                ,"template"]
+reservedWords = ["not", "just", "nothing", "if", "elif", "else", "foreach", "template"]
 
 expr :: Parser TmplExp
 expr = buildExpressionParser operatorTable term
@@ -94,7 +93,9 @@ variableChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['-', '_', '\'']
 variable :: Parser String
 variable = do
   spaces
-  var <- many1 (oneOf variableChars)
+  first <- oneOf $ ['a'..'z'] ++ ['A'..'Z']
+  rest <- many $ oneOf variableChars
+  let var = first : rest
   if var `elem` reservedWords
     then mzero
     else spaces >> return var
@@ -121,7 +122,7 @@ templateTag = "template"
 literalTag = "literal"
 printTag = "print"
 ifTag = "if"
-elifTag = "elseIf"
+elifTag = "elif"
 elseTag = "else"
 foreachTag = "foreach"
 
@@ -135,43 +136,43 @@ getHtml = do
 element :: Parser TmplElement
 element = literal <|> print' <|> ifBlock <|> foreach <|> printImpl <|> html
   where
-    literal =
-      openTag literalTag (return ()) *> fmap TmplHtml getHtml <* closeTag literalTag
+literal =
+  openTag literalTag (return ()) *> fmap TmplHtml getHtml <* closeTag literalTag
 
-    print' = openTag printTag $ spaces1 >> fmap TmplPrint expr
+print' = openTag printTag $ spaces1 >> fmap TmplPrint expr
 
-    printImpl = try (char '{' *> fmap TmplPrint expr) <* char '}'
+printImpl = try (char '{' *> fmap TmplPrint expr) <* char '}'
 
-    ifBlock = do
-      e <- openTag ifTag $ spaces1 >> expr
-      elements <- many element
-      elifs <- many elifBlock
-      else' <- optionMaybe elseBlock
-      closeTag ifTag
-      return $ TmplIf  (e, elements) elifs else'
+ifBlock = do
+  e <- openTag ifTag $ spaces1 >> expr
+  elements <- many element
+  elifs <- many elifBlock
+  else' <- optionMaybe elseBlock
+  closeTag ifTag
+  return $ TmplIf  (e, elements) elifs else'
 
-    elifBlock = do
-      e <- openTag elifTag $ spaces1 >> expr
-      elements <- many element
-      return (e, elements)
+elifBlock = do
+  e <- openTag elifTag $ spaces1 >> expr
+  elements <- many element
+  return (e, elements)
 
-    elseBlock = do
-      openTag elseTag (return ())
-      elements <- many element
-      return elements
+elseBlock = do
+  openTag elseTag (return ())
+  elements <- many element
+  return elements
 
-    foreach = do
-      (v, e) <- openTag foreachTag $ do { spaces1
-                                       ; v <- variable
-                                       ; spaces >> string "in"
-                                       ; e <- expr
-                                       ; return (v, e)
-                                       }
-      elements <- many element
-      closeTag foreachTag
-      return $ TmplForeach v e elements
+foreach = do
+  (v, e) <- openTag foreachTag $ do { spaces1
+                                   ; v <- variable
+                                   ; spaces >> string "in"
+                                   ; e <- expr
+                                   ; return (v, e)
+                                   }
+  elements <- many element
+  closeTag foreachTag
+  return $ TmplForeach v e elements
 
-    html = fmap TmplHtml getHtml
+html = fmap TmplHtml getHtml
 
 template :: Parser Tmpl
 template = do
