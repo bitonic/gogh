@@ -33,6 +33,7 @@ data TmplElement = TmplHtml String
                  | TmplIf (TmplExp, [TmplElement]) [(TmplExp, [TmplElement])]
                    (Maybe [TmplElement])
                  | TmplForeach String TmplExp [TmplElement]
+                 | TmplCall String [String]
                    deriving (Show, Eq)
 
 data TmplExp = TmplBinOp TmplBinOp TmplExp TmplExp
@@ -118,6 +119,7 @@ closeTag :: String -> Parser ()
 closeTag t = string ("{/" ++ t ++ "}") >> spaces
 
 templateTag, literalTag, printTag, ifTag, elifTag, elseTag, foreachTag :: String
+callTag :: String
 templateTag = "template"
 literalTag = "literal"
 printTag = "print"
@@ -125,6 +127,7 @@ ifTag = "if"
 elifTag = "elif"
 elseTag = "else"
 foreachTag = "foreach"
+callTag = "call"
 
 getHtml :: Parser String
 getHtml = do
@@ -134,7 +137,7 @@ getHtml = do
     else return s
 
 element :: Parser TmplElement
-element = literal <|> print' <|> ifBlock <|> foreach <|> printImpl <|> html
+element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> html
   where
     literal =
       openTag literalTag (return ()) *> fmap TmplHtml getHtml <* closeTag literalTag
@@ -172,6 +175,10 @@ element = literal <|> print' <|> ifBlock <|> foreach <|> printImpl <|> html
       closeTag foreachTag
       return $ TmplForeach v e elements
 
+    call = do
+      (name, vars) <- openTag callTag $ (,) <$> variable <*> many variable
+      return $ TmplCall name vars
+      
     html = fmap TmplHtml getHtml
 
 template :: Parser Tmpl

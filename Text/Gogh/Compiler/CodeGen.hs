@@ -59,6 +59,9 @@ genPat = map (PVar . Ident)
 genElements :: [TmplElement] -> Exp
 genElements es = App concatFun (List (map genElement es))
 
+genUnQual :: String -> Exp
+genUnQual = Var . UnQual . Ident
+
 genElement :: TmplElement -> Exp
 genElement (TmplHtml s) = Lit $ String s
 genElement (TmplPrint e) = App showFun (genExp e)
@@ -75,12 +78,13 @@ genElement (TmplForeach var generator elements) =
   App concatFun (App (App mapFun foreachFun) (genExp generator))
   where
     foreachFun = Lambda undefined [PVar (Ident var)] (genElements elements)
+genElement (TmplCall fun vars) = foldl ((. genUnQual) . App) (genUnQual fun) vars
 
 genExp :: TmplExp -> Exp
 genExp (TmplBinOp op exp1 exp2) =
   App (App (genBinOp op) (genExp exp1)) (genExp exp2)
 genExp (TmplUnOp op exp') = App (genUnOp op) (genExp exp')
-genExp (TmplVar var) = Var . UnQual . Ident $ var
+genExp (TmplVar var) = genUnQual var
 
 genBinOp :: TmplBinOp -> Exp
 genBinOp TmplEq = genFun "Data.Eq" "(==)"

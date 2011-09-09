@@ -1,15 +1,24 @@
 
-{template helloName greetingWord name insult listOfNames}
+{template hello greetingWord name insult listOfNames}
   {if is greetingWord}
-    Hello {name}!
+    {greetingWord} {name}!
   {elif insult}
     Fuck you {name}!
   {else}
-    {greetingWord} {name}!
+    Hello {name}!
   {/if}
-
+  <br/>
+  
   Also, I'd like to thank
   {foreach otherName in listOfNames}
-    {otherName}
+    {otherName}, 
   {/foreach}
+  <br/>
+
+  And now let's call another template:
+  {call goodbye name}
+{/template}
+
+{template goodbye name}
+  Goodbye, {name}!
 {/template}
