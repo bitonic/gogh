@@ -15,6 +15,7 @@ showFun = genFun "Text.Gogh.SafeShow" "safeShow"
 concatFun = genFun "Data.Monoid" "mconcat"
 emptyFun = genFun "Data.Monoid" "mzero"
 mapFun = genFun "Data.Functor" "fmap"
+foreachFun = genFun "Text.Gogh.Compiler.Utils" "foreach"
 
 imports :: SrcLoc -> [ImportDecl]
 imports loc = map mod' [ "Data.Eq"
@@ -22,6 +23,7 @@ imports loc = map mod' [ "Data.Eq"
                        , "Data.Maybe"
                        , "Data.Monoid"
                        , "Data.Ord"
+                       , "Text.Gogh.Compiler.Utils"
                        , "Text.Gogh.SafeShow"
                        ]
   where
@@ -29,17 +31,6 @@ imports loc = map mod' [ "Data.Eq"
 
 printTemplates :: TmplFile -> String
 printTemplates = prettyPrint . genTemplates
-  where
-    -- myMode = PPHsMode { classIndent = 2
-    --                   , doIndent = 2
-    --                   , caseIndent = 2
-    --                   , letIndent = 2
-    --                   , whereIndent = 2
-    --                   , onsideIndent = 2
-    --                   , spacing = True
-    --                   , layout = PPOffsideRule
-    --                   , linePragmas = False
-    --                   }
 
 genTemplates :: TmplFile -> Module
 genTemplates (TmplFile loc@(SrcLoc fn _ _) templates) =
@@ -75,9 +66,9 @@ genElement (TmplIf (e, elements) elifs else') =
     elifsExp ((e', elements') : elifs') =
       genElement (TmplIf (e', elements') elifs' else')
 genElement (TmplForeach var generator elements) =
-  App concatFun (App (App mapFun foreachFun) (genExp generator))
+  App concatFun (App (App foreachFun foreachLambda) (genExp generator))
   where
-    foreachFun = Lambda undefined [PVar (Ident var)] (genElements elements)
+    foreachLambda = Lambda undefined [PVar (Ident var)] (genElements elements)
 genElement (TmplCall fun vars) = foldl ((. genUnQual) . App) (genUnQual fun) vars
 
 genExp :: TmplExp -> Exp
@@ -100,21 +91,4 @@ genUnOp :: TmplUnOp -> Exp
 genUnOp TmplIsJust = genFun "Data.Maybe" "isJust"
 genUnOp TmplIsNothing = genFun "Data.Maybe" "isNothing"
 genUnOp TmplNot = genFun "Data.Bool" "not"
-
--------------------------------------------------------------
-
-testSrcLoc :: SrcLoc
-testSrcLoc = SrcLoc "Bar/Foo.soy" 0 0
-
-testTmpl1 :: TmplFile
-testTmpl1 = TmplFile testSrcLoc
-            [Tmpl testSrcLoc "helloName" ["greetingWord", "name"]
-             [TmplIf ( (TmplUnOp TmplIsNothing (TmplVar "greetingWord"))
-                      , [ TmplHtml "Hello "
-                        , TmplPrint (TmplVar "name")
-                        ]
-                      )
-              []
-              (Just [TmplPrint (TmplVar "greetingWord"), TmplPrint (TmplVar "name")])
-             ]]
-
+genUnOp TmplEmpty = App (genFun "Data.Eq" "(==)") (genFun "Data.Monoid" "mempty")

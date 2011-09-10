@@ -30,9 +30,14 @@ data Tmpl = Tmpl { tmplLoc :: SrcLoc
 
 data TmplElement = TmplHtml String
                  | TmplPrint TmplExp
-                 | TmplIf (TmplExp, [TmplElement]) [(TmplExp, [TmplElement])]
-                   (Maybe [TmplElement])
-                 | TmplForeach String TmplExp [TmplElement]
+                 | TmplIf
+                   (TmplExp, [TmplElement])   -- ^ The "if" part
+                   [(TmplExp, [TmplElement])] -- ^ The various "elifs"
+                   (Maybe [TmplElement])      -- ^ The "else"
+                 | TmplForeach
+                   String                -- ^ The variable that we bind in each cycle
+                   TmplExp
+                   [TmplElement]         -- ^ The main body
                  | TmplCall String [String]
                    deriving (Show, Eq)
 
@@ -54,12 +59,14 @@ data TmplBinOp = TmplEq
 data TmplUnOp = TmplIsJust
               | TmplIsNothing
               | TmplNot
+              | TmplEmpty
                 deriving (Show, Eq)
 
 operatorTable :: OperatorTable String () Identity TmplExp
 operatorTable = [ [ unary "not" TmplNot
                   , unary "is" TmplIsJust
-                  , unary "isnt" TmplIsNothing ]
+                  , unary "isnt" TmplIsNothing
+                  , unary "empty" TmplEmpty ]
                 , [ binary ">" TmplLess
                   , binary ">=" TmplLessEq
                   , binary "<" TmplGreater

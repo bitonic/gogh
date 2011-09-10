@@ -21,6 +21,7 @@ Library
   Build-Depends:        base >= 4 && <5
   GHC-Options:          -Wall
   Exposed-Modules:      Text.Gogh.SafeShow
+                      , Text.Gogh.Compiler.Utils
 
 Executable gogh
   Main-Is:              Text/Gogh/Compiler/Main.hs
