@@ -19,13 +19,12 @@ import Text.Parsec.String
 
 type TmplModule = String
 
-data TmplFile = TmplFile SrcLoc TmplModule [Tmpl]
+data TmplFile = TmplFile TmplModule [Tmpl]
                 deriving (Show, Eq)
 
 type TmplName = String
 
-data Tmpl = Tmpl { tmplLoc :: SrcLoc
-                 , tmplName :: TmplName
+data Tmpl = Tmpl { tmplName :: TmplName
                  , tmplVars :: [String]
                  , tmplElements :: [TmplElement]
                  }
@@ -124,13 +123,6 @@ varid = do
 conid :: Parser String
 conid = cons large $ many (large <|> small <|> digit <|> symbol)
 
-getSrcLoc :: Parser SrcLoc
-getSrcLoc = do
-  State {statePos = pos} <- getParserState
-  return $ SrcLoc { srcFilename = sourceName pos
-                  , srcLine = sourceLine pos
-                  , srcColumn = sourceColumn pos
-                  }
 openTag :: String -> Parser a -> Parser a
 openTag t = between (try (string ('{' : t))) (char '}' >> spaces)
 
@@ -203,12 +195,11 @@ element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> 
 
 template :: Parser Tmpl
 template = do
-  loc <- getSrcLoc
   spaces
   (name, vars) <- openTag templateTag $ (,) <$> (spaces1 >> varid) <*> many (spaces1 >> varid)
   elements <- many element
   closeTag templateTag
-  return $ Tmpl loc name vars elements
+  return $ Tmpl name vars elements
 
 module' :: Parser TmplModule
 module' = spaces >>
@@ -216,10 +207,9 @@ module' = spaces >>
 
 parser :: Parser TmplFile
 parser = do
-  loc <- getSrcLoc
   m <- module'
   templates <- many template
-  return $ TmplFile loc m templates
+  return $ TmplFile m templates
 
 parseTemplates :: String -> IO (Either ParseError TmplFile)
 parseTemplates file = fmap (runP parser () file) $ readFile file

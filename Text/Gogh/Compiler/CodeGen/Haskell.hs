@@ -15,31 +15,33 @@ concatFun = genFun "Data.Monoid" "mconcat"
 emptyFun = genFun "Data.Monoid" "mzero"
 foreachFun = genFun "Text.Gogh.Compiler.Utils" "foreach"
 
-imports :: SrcLoc -> [ImportDecl]
-imports loc = map mod' [ "Data.Eq"
-                       , "Data.Functor"
-                       , "Data.Maybe"
-                       , "Data.Monoid"
-                       , "Data.Ord"
-                       , "Text.Gogh.Compiler.Utils"
-                       , "Text.Gogh.SafeShow"
-                       ]
+location :: SrcLoc
+location = undefined
+
+imports :: [ImportDecl]
+imports = map mod' [ "Data.Eq"
+                   , "Data.Functor"
+                   , "Data.Maybe"
+                   , "Data.Monoid"
+                   , "Data.Ord"
+                   , "Text.Gogh.Compiler.Utils"
+                   , "Text.Gogh.SafeShow"
+                   ]
   where
-    mod' name = ImportDecl loc (ModuleName name) True False Nothing Nothing Nothing
+    mod' name = ImportDecl location (ModuleName name) True False Nothing Nothing Nothing
 
 printTemplates :: TmplFile -> String
 printTemplates = prettyPrint . genTemplates
 
 genTemplates :: TmplFile -> Module
-genTemplates (TmplFile loc m templates) =
-  Module loc (ModuleName m) [] Nothing (Just exports) (imports loc) $
-    map genTemplate templates
+genTemplates (TmplFile m templates) =
+  Module location (ModuleName m) [] Nothing (Just exports) imports $ map genTemplate templates
   where
     exports = map (EVar . UnQual . Ident . tmplName) templates
 
 genTemplate :: Tmpl -> Decl
-genTemplate (Tmpl loc name sig elements) =
-  FunBind [Match loc (Ident name) (genPat sig) Nothing
+genTemplate (Tmpl name sig elements) =
+  FunBind [Match location (Ident name) (genPat sig) Nothing
              (UnGuardedRhs $ genElements elements) (BDecls [])]
 
 genPat :: [String] -> [Pat]
