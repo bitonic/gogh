@@ -7,6 +7,7 @@ module Text.Gogh.Compiler.Parser
 import Control.Applicative ((<*>), (<$>), (*>), (<*))
 import Control.Monad (mzero)
 import Control.Monad.Identity (Identity)
+import Data.List (intercalate)
 import Language.Haskell.Exts.Syntax (SrcLoc (..))
 import Text.Parsec.Char
 import Text.Parsec.Combinator
@@ -16,7 +17,9 @@ import Text.Parsec.Pos
 import Text.Parsec.Prim
 import Text.Parsec.String
 
-data TmplFile = TmplFile SrcLoc [Tmpl]
+type TmplModule = String
+
+data TmplFile = TmplFile SrcLoc TmplModule [Tmpl]
                 deriving (Show, Eq)
 
 type TmplName = String
@@ -91,22 +94,35 @@ expr = buildExpressionParser operatorTable term
        <?> "expression"
 
 term :: Parser TmplExp
-term = spaces >> (try (fmap TmplVar variable)
+term = spaces >> (try (fmap TmplVar (spaces >> varid))
                   <|> between (char '(') (char ')') expr
                   <?> "simple expression")
 
-variableChars :: String
-variableChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['-', '_', '\'']
+range :: Char -> Char -> Parser Char
+range l h = satisfy (\c -> c >= l && c <= h)
 
-variable :: Parser String
-variable = do
-  spaces
-  first <- oneOf $ ['a'..'z'] ++ ['A'..'Z']
-  rest <- many $ oneOf variableChars
-  let var = first : rest
-  if var `elem` reservedWords
-    then mzero
-    else spaces >> return var
+large :: Parser Char
+large = range 'A' 'Z'
+
+small :: Parser Char
+small = range 'a' 'z'
+
+symbol :: Parser Char
+symbol = oneOf ['_']
+
+cons :: Parser Char -> Parser String -> Parser String
+cons pc ps = pc >>= \c -> fmap (c :) ps
+
+varid :: Parser String
+varid = do
+  state <- getParserState
+  res <- cons small $ many (large <|> small <|> digit <|> symbol)
+  if res `elem` reservedWords
+    then setParserState state >> mzero
+    else return res
+
+conid :: Parser String
+conid = cons large $ many (large <|> small <|> digit <|> symbol)
 
 getSrcLoc :: Parser SrcLoc
 getSrcLoc = do
@@ -115,17 +131,13 @@ getSrcLoc = do
                   , srcLine = sourceLine pos
                   , srcColumn = sourceColumn pos
                   }
-
 openTag :: String -> Parser a -> Parser a
 openTag t = between (try (string ('{' : t))) (char '}' >> spaces)
-
--- openCloseTag :: String -> Parser a -> Parser a
--- openCloseTag t p = try (spaces *> string ('{' : t)) *> p <* string "/}" <* spaces
 
 closeTag :: String -> Parser ()
 closeTag t = string ("{/" ++ t ++ "}") >> spaces
 
-templateTag, literalTag, printTag, ifTag, elifTag, elseTag, foreachTag :: String
+templateTag, literalTag, printTag, ifTag, elifTag, elseTag, foreachTag, moduleTag :: String
 callTag :: String
 templateTag = "template"
 literalTag = "literal"
@@ -135,6 +147,7 @@ elifTag = "elif"
 elseTag = "else"
 foreachTag = "foreach"
 callTag = "call"
+moduleTag = "module"
 
 getHtml :: Parser String
 getHtml = do
@@ -173,7 +186,7 @@ element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> 
 
     foreach = do
       (v, e) <- openTag foreachTag $ do { spaces1
-                                       ; v <- variable
+                                       ; v <- varid
                                        ; spaces >> string "in"
                                        ; e <- expr
                                        ; return (v, e)
@@ -183,7 +196,7 @@ element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> 
       return $ TmplForeach v e elements
 
     call = do
-      (name, vars) <- openTag callTag $ (,) <$> variable <*> many variable
+      (name, vars) <- openTag callTag $ (,) <$> (spaces1 >> varid) <*> many (spaces1 >> varid)
       return $ TmplCall name vars
       
     html = fmap TmplHtml getHtml
@@ -192,13 +205,21 @@ template :: Parser Tmpl
 template = do
   loc <- getSrcLoc
   spaces
-  (name, vars) <- openTag templateTag $ (,) <$> variable <*> many variable
+  (name, vars) <- openTag templateTag $ (,) <$> (spaces1 >> varid) <*> many (spaces1 >> varid)
   elements <- many element
   closeTag templateTag
   return $ Tmpl loc name vars elements
 
+module' :: Parser TmplModule
+module' = spaces >>
+          openTag moduleTag (spaces >> fmap (intercalate ".") (conid `sepBy` char '.'))
+
 parser :: Parser TmplFile
-parser = fmap (uncurry TmplFile) ((,) <$> getSrcLoc <*> many template)
+parser = do
+  loc <- getSrcLoc
+  m <- module'
+  templates <- many template
+  return $ TmplFile loc m templates
 
 parseTemplates :: String -> IO (Either ParseError TmplFile)
 parseTemplates file = fmap (runP parser () file) $ readFile file

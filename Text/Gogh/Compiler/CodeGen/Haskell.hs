@@ -4,7 +4,6 @@ module Text.Gogh.Compiler.CodeGen.Haskell
 
 import Language.Haskell.Exts.Pretty
 import Language.Haskell.Exts.Syntax
-import System.FilePath (takeBaseName)
 
 import Text.Gogh.Compiler.Parser
 
@@ -32,8 +31,8 @@ printTemplates :: TmplFile -> String
 printTemplates = prettyPrint . genTemplates
 
 genTemplates :: TmplFile -> Module
-genTemplates (TmplFile loc@(SrcLoc fn _ _) templates) =
-  Module loc (ModuleName (takeBaseName fn)) [] Nothing (Just exports) (imports loc) $
+genTemplates (TmplFile loc m templates) =
+  Module loc (ModuleName m) [] Nothing (Just exports) (imports loc) $
     map genTemplate templates
   where
     exports = map (EVar . UnQual . Ident . tmplName) templates

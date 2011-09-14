@@ -1,3 +1,4 @@
+{module Template1}
 
 {template hello greetingWord name insult listOfNames}
   {if is greetingWord}
@@ -11,7 +12,7 @@
   
   Also, I'd like to thank
   {foreach otherName in listOfNames}
-    {{}{otherName}{}}, 
+    {otherName}, 
   {/foreach}
   <br/>
 
