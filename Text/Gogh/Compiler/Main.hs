@@ -2,7 +2,7 @@ module Main where
 
 import System.Environment (getArgs)
 
-import Text.Gogh.Compiler.CodeGen
+import Text.Gogh.Compiler.CodeGen.Haskell
 import Text.Gogh.Compiler.Parser
 
 main :: IO ()

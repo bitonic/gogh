@@ -1,4 +1,4 @@
-module Text.Gogh.Compiler.CodeGen
+module Text.Gogh.Compiler.CodeGen.Haskell
     ( printTemplates
     ) where
 
@@ -10,11 +10,10 @@ import Text.Gogh.Compiler.Parser
 
 genFun :: String -> String -> Exp
 genFun fun module' = Var $ Qual (ModuleName fun) (Ident module')
-showFun, concatFun, emptyFun, mapFun :: Exp
+showFun, concatFun, emptyFun, foreachFun :: Exp
 showFun = genFun "Text.Gogh.SafeShow" "safeShow"
 concatFun = genFun "Data.Monoid" "mconcat"
 emptyFun = genFun "Data.Monoid" "mzero"
-mapFun = genFun "Data.Functor" "fmap"
 foreachFun = genFun "Text.Gogh.Compiler.Utils" "foreach"
 
 imports :: SrcLoc -> [ImportDecl]
