@@ -6,15 +6,27 @@ import Prelude hiding (exp)
   
 import qualified Text.Gogh.Compiler.Parser as P
 
+printTemplates :: P.File -> String
+printTemplates = prettyPrint . templates
+
+------ Utility functions ------------------------------------------------------
 fun :: String -> String -> Exp
 fun f module' = Var $ Qual (ModuleName f) (Ident module')
 
+unQual :: String -> Exp
+unQual = Var . UnQual . Ident
+
+pat :: [String] -> [Pat]
+pat = map (PVar . Ident)
+
+------ Setup and constants ----------------------------------------------------
 showFun, concatFun, emptyFun, foreachFun :: Exp
 showFun = fun "Text.Gogh.SafeShow" "safeShow"
 concatFun = fun "Data.Monoid" "mconcat"
 emptyFun = fun "Data.Monoid" "mzero"
 foreachFun = fun "Text.Gogh.Compiler.Utils" "foreach"
 
+-- ^ We don't need the location, since we're just generating code.
 location :: SrcLoc
 location = undefined
 
@@ -30,9 +42,7 @@ imports = map mod' [ "Data.Eq"
   where
     mod' name = ImportDecl location (ModuleName name) True False Nothing Nothing Nothing
 
-printTemplates :: P.File -> String
-printTemplates = prettyPrint . templates
-
+------ Code generation --------------------------------------------------------
 templates :: P.File -> Module
 templates (P.File m tmpls) =
   Module location (ModuleName m) [] Nothing (Just exports) imports $ map template tmpls
@@ -43,14 +53,8 @@ template :: P.Template -> Decl
 template (P.Template name sig elems) = FunBind [Match location (Ident name) (pat sig) Nothing
                                                 (UnGuardedRhs $ elements elems) (BDecls [])]
 
-pat :: [String] -> [Pat]
-pat = map (PVar . Ident)
-
 elements :: [P.Element] -> Exp
 elements es = App concatFun (List (map element es))
-
-unQual :: String -> Exp
-unQual = Var . UnQual . Ident
 
 element :: P.Element -> Exp
 element (P.Html s) = Lit $ String s
