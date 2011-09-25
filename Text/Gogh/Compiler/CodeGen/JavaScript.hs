@@ -50,36 +50,36 @@ funArgs = parens . hsep . punctuate comma . map text
 template :: Module -> Template -> Doc
 template module' (Template name vars elems) = braces (dotted [text module', text name] <+> equals <+>
                                                       text "function" <+> funArgs vars)
-                                                     (elementsStart elems)
+                                                     (elementsStart module' elems)
                                                      semi
 
-elementsStart :: [Element] -> Doc
-elementsStart elems = text "var" <+> contentVar <+> equals <+> text "\"\"" <> semi $+$
-                      elements elems $+$
-                      text "return" <+> contentVar <> semi
+elementsStart :: Module -> [Element] -> Doc
+elementsStart module' elems = text "var" <+> contentVar <+> equals <+> text "\"\"" <> semi $+$
+                              elements module' elems $+$
+                              text "return" <+> contentVar <> semi
 
-elements :: [Element] -> Doc
-elements = vsep . map element 
+elements :: Module -> [Element] -> Doc
+elements module' = vsep . map (element module')
 
 ccContent :: Doc
 ccContent = contentVar <+> text "+=" <> space
 
-element :: Element -> Doc
-element (Html s) = ccContent <> (text . show $ s) <> semi
-element (Print var) = ccContent <> text var <> semi
-element (If if' elifs else') = block False "if" if' $+$ elifsp $+$ elsep $+$ rbrace
+element :: Module -> Element -> Doc
+element _ (Html s) = ccContent <> (text . show $ s) <> semi
+element _ (Print var) = ccContent <> text var <> semi
+element m (If if' elifs else') = block False "if" if' $+$ elifsp $+$ elsep $+$ rbrace
   where
     block rb t (e, elems) = (if rb then rbrace else empty)
-                            <+> text t <+> parens (exp e) <+> lbrace $+$ indent (elements elems)
+                            <+> text t <+> parens (exp e) <+> lbrace $+$ indent (elements m elems)
     elifsp = vsep . map (block True "else if") $ elifs
     elsep = case else' of
       Nothing -> empty
-      Just elems -> rbrace <+> text "else" <+> lbrace $+$ indent (elements elems)
-element (Foreach var generator elems) = dotted [text generator, text "foreach" <> parens fun]
-                                        <> semi
+      Just elems -> rbrace <+> text "else" <+> lbrace $+$ indent (elements m elems)
+element m (Foreach var generator elems) = dotted [text generator, text "foreach" <> parens fun]
+                                          <> semi
   where
-    fun = bracesE (text "function" <+> parens (text var)) (elements elems)
-element (Call f vars) = ccContent <> text f <> funArgs vars <> semi
+    fun = bracesE (text "function" <+> parens (text var)) (elements m elems)
+element m (Call f vars) = ccContent <> dotted [text m, text f <> funArgs vars <> semi]
 
 exp :: Exp -> Doc
 exp (BinOp op e1 e2) = parens (exp e1) <+> binOp op <+> parens (exp e2)

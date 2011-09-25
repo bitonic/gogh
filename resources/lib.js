@@ -16,7 +16,7 @@
             var obj = this;
             var key;
             for (key in obj) {
-                if (obj.hasOwnProperty.call(key)) {
+                if (obj.hasOwnProperty(key)) {
                     f(obj[key]);
                 }
             }
@@ -35,7 +35,7 @@
             var obj = this;
             var key;
             for (key in obj) {
-                if (obj.hasOwnProperty.call(key)) {
+                if (obj.hasOwnProperty(key)) {
                     return false;
                 }
             }
