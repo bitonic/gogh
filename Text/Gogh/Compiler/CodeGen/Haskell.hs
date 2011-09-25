@@ -2,16 +2,18 @@ module Text.Gogh.Compiler.CodeGen.Haskell (printTemplates) where
 
 import Language.Haskell.Exts.Pretty
 import Language.Haskell.Exts.Syntax
-
+import Prelude hiding (exp)
+  
 import qualified Text.Gogh.Compiler.Parser as P
 
-genFun :: String -> String -> Exp
-genFun fun module' = Var $ Qual (ModuleName fun) (Ident module')
+fun :: String -> String -> Exp
+fun f module' = Var $ Qual (ModuleName f) (Ident module')
+
 showFun, concatFun, emptyFun, foreachFun :: Exp
-showFun = genFun "Text.Gogh.SafeShow" "safeShow"
-concatFun = genFun "Data.Monoid" "mconcat"
-emptyFun = genFun "Data.Monoid" "mzero"
-foreachFun = genFun "Text.Gogh.Compiler.Utils" "foreach"
+showFun = fun "Text.Gogh.SafeShow" "safeShow"
+concatFun = fun "Data.Monoid" "mconcat"
+emptyFun = fun "Data.Monoid" "mzero"
+foreachFun = fun "Text.Gogh.Compiler.Utils" "foreach"
 
 location :: SrcLoc
 location = undefined
@@ -29,64 +31,62 @@ imports = map mod' [ "Data.Eq"
     mod' name = ImportDecl location (ModuleName name) True False Nothing Nothing Nothing
 
 printTemplates :: P.File -> String
-printTemplates = prettyPrint . genTemplates
+printTemplates = prettyPrint . templates
 
-genTemplates :: P.File -> Module
-genTemplates (P.File m templates) =
-  Module location (ModuleName m) [] Nothing (Just exports) imports $ map genTemplate templates
+templates :: P.File -> Module
+templates (P.File m tmpls) =
+  Module location (ModuleName m) [] Nothing (Just exports) imports $ map template tmpls
   where
-    exports = map (EVar . UnQual . Ident . P.tmplName) templates
+    exports = map (EVar . UnQual . Ident . P.tmplName) tmpls
 
-genTemplate :: P.Template -> Decl
-genTemplate (P.Template name sig elements) =
-  FunBind [Match location (Ident name) (genPat sig) Nothing
-             (UnGuardedRhs $ genElements elements) (BDecls [])]
+template :: P.Template -> Decl
+template (P.Template name sig elems) = FunBind [Match location (Ident name) (pat sig) Nothing
+                                                (UnGuardedRhs $ elements elems) (BDecls [])]
 
-genPat :: [String] -> [Pat]
-genPat = map (PVar . Ident)
+pat :: [String] -> [Pat]
+pat = map (PVar . Ident)
 
-genElements :: [P.Element] -> Exp
-genElements es = App concatFun (List (map genElement es))
+elements :: [P.Element] -> Exp
+elements es = App concatFun (List (map element es))
 
-genUnQual :: String -> Exp
-genUnQual = Var . UnQual . Ident
+unQual :: String -> Exp
+unQual = Var . UnQual . Ident
 
-genElement :: P.Element -> Exp
-genElement (P.Html s) = Lit $ String s
-genElement (P.Print v) = App showFun (genUnQual v)
-genElement (P.If (e, elements) elifs else') =
-  If (genExp e) (genElements elements) (elifsExp elifs)
+element :: P.Element -> Exp
+element (P.Html s) = Lit $ String s
+element (P.Print v) = App showFun (unQual v)
+element (P.If (e, elems) elifs else') = If (exp e) (elements elems) (elifsExp elifs)
   where
     elseExp = case else' of
                 Nothing -> emptyFun
-                Just elements' -> genElements elements'
+                Just elements' -> elements elements'
     elifsExp [] = elseExp
     elifsExp ((e', elements') : elifs') =
-      genElement (P.If (e', elements') elifs' else')
-genElement (P.Foreach var generator elements) =
-  App concatFun (App (App foreachFun foreachLambda) (genUnQual generator))
+      element (P.If (e', elements') elifs' else')
+element (P.Foreach var generator elems) =
+  App concatFun (App (App foreachFun foreachLambda) (unQual generator))
   where
-    foreachLambda = Lambda undefined [PVar (Ident var)] (genElements elements)
-genElement (P.Call fun vars) = foldl ((. genUnQual) . App) (genUnQual fun) vars
+    foreachLambda = Lambda undefined [PVar (Ident var)] (elements elems)
+element (P.Call f vars) = foldl ((. unQual) . App) (unQual f) vars
 
-genExp :: P.Exp -> Exp
-genExp (P.BinOp op exp1 exp2) =
-  App (App (genBinOp op) (genExp exp1)) (genExp exp2)
-genExp (P.UnOp op exp') = App (genUnOp op) (genExp exp')
-genExp (P.Var var) = genUnQual var
+exp :: P.Exp -> Exp
+exp (P.BinOp op exp1 exp2) =
+  App (App (binOp op) (exp exp1)) (exp exp2)
+exp (P.UnOp op exp') = App (unOp op) (exp exp')
+exp (P.Var var) = unQual var
 
-genBinOp :: P.BinOp -> Exp
-genBinOp P.Eq = genFun "Data.Eq" "(==)"
-genBinOp P.NotEq = genFun "Data.Eq" "(/=)"
-genBinOp P.Less = genFun "Data.Ord" "(<)"
-genBinOp P.LessEq = genFun "Data.Ord" "(<=)"
-genBinOp P.Greater = genFun "Data.Ord" "(>)"
-genBinOp P.GreaterEq = genFun "Data.Ord" "(>=)"
-genBinOp P.And = genFun "Data.Bool" "(&&)"
-genBinOp P.Or = genFun "Data.Bool" "(||)"
+binOp :: P.BinOp -> Exp
+binOp P.Eq = fun "Data.Eq" "(==)"
+binOp P.NotEq = fun "Data.Eq" "(/=)"
+binOp P.Less = fun "Data.Ord" "(<)"
+binOp P.LessEq = fun "Data.Ord" "(<=)"
+binOp P.Greater = fun "Data.Ord" "(>)"
+binOp P.GreaterEq = fun "Data.Ord" "(>=)"
+binOp P.And = fun "Data.Bool" "(&&)"
+binOp P.Or = fun "Data.Bool" "(||)"
 
-genUnOp :: P.UnOp -> Exp
-genUnOp P.IsJust = genFun "Data.Maybe" "isJust"
-genUnOp P.IsNothing = genFun "Data.Maybe" "isNothing"
-genUnOp P.Not = genFun "Data.Bool" "not"
-genUnOp P.Empty = App (genFun "Data.Eq" "(==)") (genFun "Data.Monoid" "mempty")
+unOp :: P.UnOp -> Exp
+unOp P.IsJust = fun "Data.Maybe" "isJust"
+unOp P.IsNothing = fun "Data.Maybe" "isNothing"
+unOp P.Not = fun "Data.Bool" "not"
+unOp P.Empty = App (fun "Data.Eq" "(==)") (fun "Data.Monoid" "mempty")

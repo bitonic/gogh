@@ -8,7 +8,7 @@ License:                BSD3
 Build-Type:             Simple
 Category:               Web
 Synopsis:               Templates targeting compiled to Haskell/JavaScript
-Tested-With:            GHC==7.2
+Tested-With:            GHC==7.0.3
 Description:
   Templates that can be compiled to Haskell or to JavaScript. Inspired by Google
   closure templates: <http://code.google.com/closure/templates/>
