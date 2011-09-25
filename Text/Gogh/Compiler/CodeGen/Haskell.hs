@@ -1,6 +1,4 @@
-module Text.Gogh.Compiler.CodeGen.Haskell
-    ( printTemplates
-    ) where
+module Text.Gogh.Compiler.CodeGen.Haskell (printTemplates) where
 
 import Language.Haskell.Exts.Pretty
 import Language.Haskell.Exts.Syntax

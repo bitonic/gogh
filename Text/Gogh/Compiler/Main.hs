@@ -14,10 +14,10 @@ main = do
     else do
       res <- parseTemplates (args !! 1)
       case res of
-        Left err -> putStrLn . show $ err
-        Right tmpl -> putStrLn . (printFunction (args !! 0)) $ tmpl
+        Left err -> print err
+        Right tmpl -> putStrLn . printFunction (args !! 0) $ tmpl
   where
-    usage = error "Usage: ./closure (--haskell|--javascript) file.soy"
+    usage = error "Usage: ./closure (--haskell|--javascript) file.gog"
   
     printFunction "--haskell"    = HS.printTemplates
     printFunction "--javascript" = JS.printTemplates

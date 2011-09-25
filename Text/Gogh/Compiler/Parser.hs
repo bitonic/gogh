@@ -174,8 +174,7 @@ element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> 
 
     elseBlock = do
       openTag elseTag (return ())
-      elements <- many element
-      return elements
+      many element
 
     foreach = do
       (v, e) <- openTag foreachTag $ do { spaces1

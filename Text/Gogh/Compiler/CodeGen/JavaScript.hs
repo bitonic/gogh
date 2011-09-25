@@ -1,6 +1,4 @@
-module Text.Gogh.Compiler.CodeGen.JavaScript
-       ( printTemplates
-       ) where
+module Text.Gogh.Compiler.CodeGen.JavaScript (printTemplates) where
 
 import Prelude hiding (elem, exp)
 import Text.PrettyPrint hiding (braces)
@@ -11,12 +9,21 @@ printTemplates :: File -> String
 printTemplates = render . file
 
 file :: File -> Doc
-file (File module' tmpls) = text "(function () {" $+$
-                            nest 2 (object module' $+$ foldr ($+$) empty (map (template module') tmpls)) $+$
-                            text "})();"
+file (File module' tmpls) = braces (text "(function ()")
+                                   (object module' $+$ foldr (($+$) . template module') empty tmpls)
+                                   (text ")();")
 
-braces :: Doc -> Doc
-braces doc = lbrace <+> doc <+> rbrace
+indent :: Doc -> Doc
+indent = nest 4
+
+braces :: Doc -- ^ Before
+       -> Doc -- ^ In the braces
+       -> Doc -- ^ After
+       -> Doc
+braces b doc a = (b <+> lbrace) $+$ indent doc $+$ (rbrace <+> a)
+
+bracesE :: Doc -> Doc -> Doc
+bracesE b doc = braces b doc empty
 
 equalsBool :: Doc
 equalsBool = text "==="
@@ -29,23 +36,24 @@ dotted :: [Doc] -> Doc
 dotted = hcat . punctuate (char '.')
           
 object :: Module -> Doc
-object module' = text "if" <+>
-                 parens (text "typeof" <+> objName <+> equalsBool <+> text "'undefined'") <+>
-                 braces (objName <+> equals <+> text "{}" <> semi)
+object module' = bracesE (text "if" <+>
+                          parens (text "typeof" <+> objName <+> equalsBool <+> text "'undefined'"))
+                         (objName <+> equals <+> text "{}" <> semi)
   where
     objName = text module'
 
 template :: Module -> Template -> Doc
-template module' (Template name _ elems) = dotted [text module', text name] <+> equals <+>
-                                           text "function" <+> parens dataVar <+> (braces . elementsStart $ elems)
+template module' (Template name _ elems) = bracesE (dotted [text module', text name] <+> equals <+>
+                                                    text "function" <+> parens dataVar)
+                                                   (elementsStart elems)
 
 elementsStart :: [Element] -> Doc
-elementsStart elems = text "var" <+> contentVar <+> equals <+> text "\"\"" <> semi <+>
-                      elements elems <+>
+elementsStart elems = text "var" <+> contentVar <+> equals <+> text "\"\"" <> semi $+$
+                      elements elems $+$
                       text "return" <+> contentVar <> semi
 
 elements :: [Element] -> Doc
-elements = hsep . map element
+elements = foldr (($+$) . element) empty
 
 ccContent :: Doc
 ccContent = contentVar <+> text "+=" <> space
@@ -56,17 +64,18 @@ variable var = dotted [dataVar, text var]
 element :: Element -> Doc
 element (Html s) = ccContent <> (text . show $ s) <> semi
 element (Print var) = ccContent <> variable var <> semi
-element (If (e', elems') elifs else') = block "if" e' elems' <+> elifsp <+> elsep
+element (If if' elifs else') = block False "if" if' $+$ elifsp $+$ elsep $+$ rbrace
   where
-    block t e elems = text t <+> parens (exp e) <+> braces (elements elems)
-    elifsp = hcat . punctuate space . map (uncurry (block "else if")) $ elifs
+    block True  t body       = rbrace <+> block False t body
+    block False t (e, elems) = text t <+> parens (exp e) <+> lbrace $+$ indent (elements elems)
+    elifsp = foldr ($+$) empty . map (block True "else if") $ elifs
     elsep = case else' of
       Nothing -> empty
-      Just elems -> text "else" <+> braces (elements elems)
+      Just elems -> text "else" <+> lbrace $+$ indent (elements elems)
 element (Foreach var generator elems) = dotted [text generator, text "foreach" <> parens fun]
                                         <> semi
   where
-    fun = text "function" <+> parens (text var) <+> braces (elements elems)
+    fun = bracesE (text "function" <+> parens (text var)) (elements elems)
 element (Call f _) = ccContent <> text f <> parens dataVar <> semi
 
 exp :: Exp -> Doc
