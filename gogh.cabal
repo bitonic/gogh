@@ -29,4 +29,5 @@ Executable gogh
                       , parsec >= 3 && < 4
                       , mtl
                       , haskell-src-exts
+                      , pretty
   GHC-Options:          -Wall -fno-warn-unused-do-bind
