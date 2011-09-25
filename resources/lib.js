@@ -2,7 +2,7 @@
 
 (function () {
     // Foreach functions for arrays and objects.
-    if (Array.prototype.foreach === 'undefined') {
+    if (typeof Array.prototype.foreach === 'undefined') {
         Array.prototype.foreach = function (f) {
             var i;
             for (i = 0; i < this.length; i++) {
@@ -11,7 +11,7 @@
         };
     }
 
-    if (Object.prototype.foreach === 'undefined') {
+    if (typeof Object.prototype.foreach === 'undefined') {
         Object.prototype.foreach = function (f) {
             var obj = this;
             var key;
@@ -24,13 +24,13 @@
     }
 
     // "empty" functions
-    if (Array.prototype.empty === 'undefined') {
+    if (typeof Array.prototype.empty === 'undefined') {
         Array.prototype.empty = function () {
             this.length === 0;
         };
     }
 
-    if (Object.prototype.empty === 'undefined') {
+    if (typeof Object.prototype.empty === 'undefined') {
         Object.prototype.empty = function() {
             var obj = this;
             var key;
@@ -44,7 +44,7 @@
     }
 
     // Select some keys from a dictionary
-    if (Object.prototype.getKeys === 'undefined') {
+    if (typeof Object.prototype.getKeys === 'undefined') {
         Object.prototype.getKeys = function(source) {
             var source = this;
             var dest = {};

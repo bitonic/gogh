@@ -7,4 +7,3 @@ import Text.Gogh.SafeShow
 
 foreach :: (Foldable t, SafeShow b) => (a -> b) -> t a -> [b]
 foreach f t = foldr ((:) . f) [] t
-

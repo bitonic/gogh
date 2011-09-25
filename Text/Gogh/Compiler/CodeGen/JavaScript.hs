@@ -19,9 +19,6 @@ indent = nest 4
 vsep :: [Doc] -> Doc
 vsep = foldr ($+$) empty
 
-decVar :: VarId -> Doc
-decVar var = text "var" <+> text var
-
 braces :: Doc -- ^ Before
        -> Doc -- ^ In the braces
        -> Doc -- ^ After
@@ -34,8 +31,7 @@ bracesE b doc = braces b doc empty
 equalsBool :: Doc
 equalsBool = text "==="
 
-dataVar, contentVar :: Doc
-dataVar = text "_data"
+contentVar :: Doc
 contentVar = text "_content"
 
 dotted :: [Doc] -> Doc
@@ -48,20 +44,19 @@ object module' = bracesE (text "if" <+>
   where
     objName = text module'
 
+funArgs :: [VarId] -> Doc
+funArgs = parens . hsep . punctuate comma . map text
+
 template :: Module -> Template -> Doc
 template module' (Template name vars elems) = braces (dotted [text module', text name] <+> equals <+>
-                                                      text "function" <+> parens dataVar)
-                                                     (elementsStart elems vars)
+                                                      text "function" <+> funArgs vars)
+                                                     (elementsStart elems)
                                                      semi
 
-elementsStart :: [Element] -> [VarId] -> Doc
-elementsStart elems vars = setupVars vars $+$
-                           text "var" <+> contentVar <+> equals <+> text "\"\"" <> semi $+$
-                           elements elems $+$
-                           text "return" <+> contentVar <> semi
-
-setupVars :: [VarId] -> Doc
-setupVars = vsep . map (\v -> decVar v <+> equals <+> dotted [dataVar, text v] <> semi)
+elementsStart :: [Element] -> Doc
+elementsStart elems = text "var" <+> contentVar <+> equals <+> text "\"\"" <> semi $+$
+                      elements elems $+$
+                      text "return" <+> contentVar <> semi
 
 elements :: [Element] -> Doc
 elements = vsep . map element 
@@ -84,7 +79,7 @@ element (Foreach var generator elems) = dotted [text generator, text "foreach" <
                                         <> semi
   where
     fun = bracesE (text "function" <+> parens (text var)) (elements elems)
-element (Call f _) = ccContent <> text f <> parens dataVar <> semi
+element (Call f vars) = ccContent <> text f <> funArgs vars <> semi
 
 exp :: Exp -> Doc
 exp (BinOp op e1 e2) = parens (exp e1) <+> binOp op <+> parens (exp e2)
