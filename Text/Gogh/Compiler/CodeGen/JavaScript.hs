@@ -10,11 +10,17 @@ printTemplates = render . file
 
 file :: File -> Doc
 file (File module' tmpls) = braces (text "(function ()")
-                                   (object module' $+$ foldr (($+$) . template module') empty tmpls)
+                                   (object module' $+$ vsep (map (template module') tmpls))
                                    (text ")();")
 
 indent :: Doc -> Doc
 indent = nest 4
+
+vsep :: [Doc] -> Doc
+vsep = foldr ($+$) empty
+
+decVar :: VarId -> Doc
+decVar var = text "var" <+> text var
 
 braces :: Doc -- ^ Before
        -> Doc -- ^ In the braces
@@ -29,8 +35,8 @@ equalsBool :: Doc
 equalsBool = text "==="
 
 dataVar, contentVar :: Doc
-dataVar = text "data"
-contentVar = text "content"
+dataVar = text "_data"
+contentVar = text "_content"
 
 dotted :: [Doc] -> Doc
 dotted = hcat . punctuate (char '.')
@@ -43,32 +49,34 @@ object module' = bracesE (text "if" <+>
     objName = text module'
 
 template :: Module -> Template -> Doc
-template module' (Template name _ elems) = bracesE (dotted [text module', text name] <+> equals <+>
-                                                    text "function" <+> parens dataVar)
-                                                   (elementsStart elems)
+template module' (Template name vars elems) = braces (dotted [text module', text name] <+> equals <+>
+                                                      text "function" <+> parens dataVar)
+                                                     (elementsStart elems vars)
+                                                     semi
 
-elementsStart :: [Element] -> Doc
-elementsStart elems = text "var" <+> contentVar <+> equals <+> text "\"\"" <> semi $+$
-                      elements elems $+$
-                      text "return" <+> contentVar <> semi
+elementsStart :: [Element] -> [VarId] -> Doc
+elementsStart elems vars = setupVars vars $+$
+                           text "var" <+> contentVar <+> equals <+> text "\"\"" <> semi $+$
+                           elements elems $+$
+                           text "return" <+> contentVar <> semi
+
+setupVars :: [VarId] -> Doc
+setupVars = vsep . map (\v -> decVar v <+> equals <+> dotted [dataVar, text v] <> semi)
 
 elements :: [Element] -> Doc
-elements = foldr (($+$) . element) empty
+elements = vsep . map element 
 
 ccContent :: Doc
 ccContent = contentVar <+> text "+=" <> space
 
-variable :: VarId -> Doc
-variable var = dotted [dataVar, text var]
-
 element :: Element -> Doc
 element (Html s) = ccContent <> (text . show $ s) <> semi
-element (Print var) = ccContent <> variable var <> semi
+element (Print var) = ccContent <> text var <> semi
 element (If if' elifs else') = block False "if" if' $+$ elifsp $+$ elsep $+$ rbrace
   where
     block rb t (e, elems) = (if rb then rbrace else empty)
                             <+> text t <+> parens (exp e) <+> lbrace $+$ indent (elements elems)
-    elifsp = foldr ($+$) empty . map (block True "else if") $ elifs
+    elifsp = vsep . map (block True "else if") $ elifs
     elsep = case else' of
       Nothing -> empty
       Just elems -> rbrace <+> text "else" <+> lbrace $+$ indent (elements elems)
@@ -81,7 +89,7 @@ element (Call f _) = ccContent <> text f <> parens dataVar <> semi
 exp :: Exp -> Doc
 exp (BinOp op e1 e2) = parens (exp e1) <+> binOp op <+> parens (exp e2)
 exp (UnOp op e) = unOp op e
-exp (Var v) = variable v
+exp (Var v) = text v
 
 binOp :: BinOp -> Doc
 binOp Eq = equalsBool
