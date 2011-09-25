@@ -1,6 +1,6 @@
 // Utilities for the compiled JavaScript templates
 
-(function() {
+(function () {
     // Foreach functions for arrays and objects.
     if (Array.prototype.foreach === 'undefined') {
         Array.prototype.foreach = function (f) {

@@ -66,12 +66,12 @@ element (Html s) = ccContent <> (text . show $ s) <> semi
 element (Print var) = ccContent <> variable var <> semi
 element (If if' elifs else') = block False "if" if' $+$ elifsp $+$ elsep $+$ rbrace
   where
-    block True  t body       = rbrace <+> block False t body
-    block False t (e, elems) = text t <+> parens (exp e) <+> lbrace $+$ indent (elements elems)
+    block rb t (e, elems) = (if rb then rbrace else empty)
+                            <+> text t <+> parens (exp e) <+> lbrace $+$ indent (elements elems)
     elifsp = foldr ($+$) empty . map (block True "else if") $ elifs
     elsep = case else' of
       Nothing -> empty
-      Just elems -> text "else" <+> lbrace $+$ indent (elements elems)
+      Just elems -> rbrace <+> text "else" <+> lbrace $+$ indent (elements elems)
 element (Foreach var generator elems) = dotted [text generator, text "foreach" <> parens fun]
                                         <> semi
   where
