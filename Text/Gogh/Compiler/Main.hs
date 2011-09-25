@@ -17,7 +17,7 @@ main = do
         Left err -> print err
         Right tmpl -> putStrLn . printFunction (args !! 0) $ tmpl
   where
-    usage = error "Usage: ./closure (--haskell|--javascript) file.gog"
+    usage = error "Usage: ./gogh (--haskell|--javascript) file.gog"
   
     printFunction "--haskell"    = HS.printTemplates
     printFunction "--javascript" = JS.printTemplates
