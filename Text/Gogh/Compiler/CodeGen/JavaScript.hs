@@ -20,7 +20,7 @@ braces :: Doc -- ^ Before
        -> Doc -- ^ In the braces
        -> Doc -- ^ After
        -> Doc
-braces b doc a = (b <+> lbrace) $+$ indent doc $+$ (rbrace <+> a)
+braces b doc a = (b <+> lbrace) $+$ indent doc $+$ (rbrace <> a)
 
 bracesE :: Doc -> Doc -> Doc
 bracesE b doc = braces b doc empty
