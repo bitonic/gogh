@@ -5,7 +5,7 @@ module Text.Gogh.Compiler.CodeGen.Haskell
 import Language.Haskell.Exts.Pretty
 import Language.Haskell.Exts.Syntax
 
-import Text.Gogh.Compiler.Parser
+import qualified Text.Gogh.Compiler.Parser as P
 
 genFun :: String -> String -> Exp
 genFun fun module' = Var $ Qual (ModuleName fun) (Ident module')
@@ -30,33 +30,33 @@ imports = map mod' [ "Data.Eq"
   where
     mod' name = ImportDecl location (ModuleName name) True False Nothing Nothing Nothing
 
-printTemplates :: TmplFile -> String
+printTemplates :: P.File -> String
 printTemplates = prettyPrint . genTemplates
 
-genTemplates :: TmplFile -> Module
-genTemplates (TmplFile m templates) =
+genTemplates :: P.File -> Module
+genTemplates (P.File m templates) =
   Module location (ModuleName m) [] Nothing (Just exports) imports $ map genTemplate templates
   where
-    exports = map (EVar . UnQual . Ident . tmplName) templates
+    exports = map (EVar . UnQual . Ident . P.tmplName) templates
 
-genTemplate :: Tmpl -> Decl
-genTemplate (Tmpl name sig elements) =
+genTemplate :: P.Template -> Decl
+genTemplate (P.Template name sig elements) =
   FunBind [Match location (Ident name) (genPat sig) Nothing
              (UnGuardedRhs $ genElements elements) (BDecls [])]
 
 genPat :: [String] -> [Pat]
 genPat = map (PVar . Ident)
 
-genElements :: [TmplElement] -> Exp
+genElements :: [P.Element] -> Exp
 genElements es = App concatFun (List (map genElement es))
 
 genUnQual :: String -> Exp
 genUnQual = Var . UnQual . Ident
 
-genElement :: TmplElement -> Exp
-genElement (TmplHtml s) = Lit $ String s
-genElement (TmplPrint e) = App showFun (genExp e)
-genElement (TmplIf (e, elements) elifs else') =
+genElement :: P.Element -> Exp
+genElement (P.Html s) = Lit $ String s
+genElement (P.Print v) = App showFun (genUnQual v)
+genElement (P.If (e, elements) elifs else') =
   If (genExp e) (genElements elements) (elifsExp elifs)
   where
     elseExp = case else' of
@@ -64,31 +64,31 @@ genElement (TmplIf (e, elements) elifs else') =
                 Just elements' -> genElements elements'
     elifsExp [] = elseExp
     elifsExp ((e', elements') : elifs') =
-      genElement (TmplIf (e', elements') elifs' else')
-genElement (TmplForeach var generator elements) =
-  App concatFun (App (App foreachFun foreachLambda) (genExp generator))
+      genElement (P.If (e', elements') elifs' else')
+genElement (P.Foreach var generator elements) =
+  App concatFun (App (App foreachFun foreachLambda) (genUnQual generator))
   where
     foreachLambda = Lambda undefined [PVar (Ident var)] (genElements elements)
-genElement (TmplCall fun vars) = foldl ((. genUnQual) . App) (genUnQual fun) vars
+genElement (P.Call fun vars) = foldl ((. genUnQual) . App) (genUnQual fun) vars
 
-genExp :: TmplExp -> Exp
-genExp (TmplBinOp op exp1 exp2) =
+genExp :: P.Exp -> Exp
+genExp (P.BinOp op exp1 exp2) =
   App (App (genBinOp op) (genExp exp1)) (genExp exp2)
-genExp (TmplUnOp op exp') = App (genUnOp op) (genExp exp')
-genExp (TmplVar var) = genUnQual var
+genExp (P.UnOp op exp') = App (genUnOp op) (genExp exp')
+genExp (P.Var var) = genUnQual var
 
-genBinOp :: TmplBinOp -> Exp
-genBinOp TmplEq = genFun "Data.Eq" "(==)"
-genBinOp TmplNotEq = genFun "Data.Eq" "(/=)"
-genBinOp TmplLess = genFun "Data.Ord" "(<)"
-genBinOp TmplLessEq = genFun "Data.Ord" "(<=)"
-genBinOp TmplGreater = genFun "Data.Ord" "(>)"
-genBinOp TmplGreaterEq = genFun "Data.Ord" "(>=)"
-genBinOp TmplAnd = genFun "Data.Bool" "(&&)"
-genBinOp TmplOr = genFun "Data.Bool" "(||)"
+genBinOp :: P.BinOp -> Exp
+genBinOp P.Eq = genFun "Data.Eq" "(==)"
+genBinOp P.NotEq = genFun "Data.Eq" "(/=)"
+genBinOp P.Less = genFun "Data.Ord" "(<)"
+genBinOp P.LessEq = genFun "Data.Ord" "(<=)"
+genBinOp P.Greater = genFun "Data.Ord" "(>)"
+genBinOp P.GreaterEq = genFun "Data.Ord" "(>=)"
+genBinOp P.And = genFun "Data.Bool" "(&&)"
+genBinOp P.Or = genFun "Data.Bool" "(||)"
 
-genUnOp :: TmplUnOp -> Exp
-genUnOp TmplIsJust = genFun "Data.Maybe" "isJust"
-genUnOp TmplIsNothing = genFun "Data.Maybe" "isNothing"
-genUnOp TmplNot = genFun "Data.Bool" "not"
-genUnOp TmplEmpty = App (genFun "Data.Eq" "(==)") (genFun "Data.Monoid" "mempty")
+genUnOp :: P.UnOp -> Exp
+genUnOp P.IsJust = genFun "Data.Maybe" "isJust"
+genUnOp P.IsNothing = genFun "Data.Maybe" "isNothing"
+genUnOp P.Not = genFun "Data.Bool" "not"
+genUnOp P.Empty = App (genFun "Data.Eq" "(==)") (genFun "Data.Monoid" "mempty")

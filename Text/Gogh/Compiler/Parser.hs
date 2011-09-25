@@ -1,6 +1,6 @@
 module Text.Gogh.Compiler.Parser
-    ( TmplFile (..), TmplName, Tmpl (..), TmplElement (..)
-    , TmplExp (..), TmplBinOp (..), TmplUnOp (..)
+    ( File (..), Module, Name, Template  (..), VarId
+    , Element (..) , Exp (..), BinOp (..), UnOp (..)
     , parseTemplates, parser
     ) where
 
@@ -12,73 +12,76 @@ import Text.Parsec.Char
 import Text.Parsec.Combinator
 import Text.Parsec.Error
 import Text.Parsec.Expr
-import Text.Parsec.Prim
+import Text.Parsec.Prim hiding (Empty)
 import Text.Parsec.String
 
-type TmplModule = String
+type Module = String
 
-data TmplFile = TmplFile TmplModule [Tmpl]
-                deriving (Show, Eq)
+data File = File Module [Template]
+          deriving (Show, Eq)
 
-type TmplName = String
+type Name = String
 
-data Tmpl = Tmpl { tmplName :: TmplName
-                 , tmplVars :: [String]
-                 , tmplElements :: [TmplElement]
-                 }
-            deriving (Show, Eq)
+data Template = Template { tmplName :: Name
+                         , tmplVars :: [VarId]
+                         , tmplElements :: [Element]
+                         }
+              deriving (Show, Eq)
 
-data TmplElement = TmplHtml String
-                 | TmplPrint TmplExp
-                 | TmplIf
-                   (TmplExp, [TmplElement])   -- ^ The "if" part
-                   [(TmplExp, [TmplElement])] -- ^ The various "elifs"
-                   (Maybe [TmplElement])      -- ^ The "else"
-                 | TmplForeach
-                   String                -- ^ The variable that we bind in each cycle
-                   TmplExp
-                   [TmplElement]         -- ^ The main body
-                 | TmplCall String [String]
-                   deriving (Show, Eq)
+type VarId = String
 
-data TmplExp = TmplBinOp TmplBinOp TmplExp TmplExp
-             | TmplUnOp TmplUnOp TmplExp
-             | TmplVar String
-               deriving (Show, Eq)
+data Element = Html String        -- ^ Literal HTML
+             | Print VarId
+             | If
+               (Exp, [Element])   -- ^ The "if" part
+               [(Exp, [Element])] -- ^ The various "elifs"
+               (Maybe [Element])  -- ^ The "else"
+             | Foreach
+               VarId              -- ^ The variable that we bind in each cycle
+               VarId
+               [Element]          -- ^ The main body
+             | Call VarId [VarId]
+             deriving (Show, Eq)
 
-data TmplBinOp = TmplEq
-               | TmplNotEq
-               | TmplLess
-               | TmplLessEq
-               | TmplGreater
-               | TmplGreaterEq
-               | TmplAnd
-               | TmplOr
-                 deriving (Show, Eq)
+data Exp = BinOp BinOp Exp Exp
+         | UnOp UnOp Exp
+         | Var VarId
+         deriving (Show, Eq)
 
-data TmplUnOp = TmplIsJust
-              | TmplIsNothing
-              | TmplNot
-              | TmplEmpty
-                deriving (Show, Eq)
 
-operatorTable :: OperatorTable String () Identity TmplExp
-operatorTable = [ [ unary "not" TmplNot
-                  , unary "is" TmplIsJust
-                  , unary "isnt" TmplIsNothing
-                  , unary "empty" TmplEmpty ]
-                , [ binary ">" TmplLess
-                  , binary ">=" TmplLessEq
-                  , binary "<" TmplGreater
-                  , binary "<=" TmplGreaterEq ]
-                , [ binary "==" TmplEq
-                  , binary "/=" TmplNotEq ]
-                , [ binary "&&" TmplAnd ]
-                , [ binary "||" TmplOr ]
+data BinOp = Eq
+           | NotEq
+           | Less
+           | LessEq
+           | Greater
+           | GreaterEq
+           | And
+           | Or
+           deriving (Show, Eq)
+
+data UnOp = IsJust
+          | IsNothing
+          | Not
+          | Empty
+          deriving (Show, Eq)
+
+operatorTable :: OperatorTable String () Identity Exp
+operatorTable = [ [ unary "not" Not
+                  , unary "is" IsJust
+                  , unary "isnt" IsNothing
+                  , unary "empty" Empty ]
+                , [ binary ">" Less
+                  , binary ">=" LessEq
+                  , binary "<" Greater
+                  , binary "<=" GreaterEq ]
+                , [ binary "==" Eq
+                  , binary "/=" NotEq ]
+                , [ binary "&&" And ]
+                , [ binary "||" Or ]
                 ]
   where
-    unary s f = Prefix (try (string s >> spaces1) >> return (TmplUnOp f))
-    binary s f = Infix (try (string s) >> return (TmplBinOp f)) AssocLeft
+    unary s f = Prefix (try (string s >> spaces1) >> return (UnOp f))
+    binary s f = Infix (try (string s) >> return (BinOp f)) AssocLeft
 
 spaces1 :: Parser ()
 spaces1 = space >> spaces
@@ -86,12 +89,12 @@ spaces1 = space >> spaces
 reservedWords :: [String]
 reservedWords = ["not", "is", "isnt", "if", "elif", "else", "foreach", "template"]
 
-expr :: Parser TmplExp
+expr :: Parser Exp
 expr = buildExpressionParser operatorTable term
        <?> "expression"
 
-term :: Parser TmplExp
-term = spaces >> (try (fmap TmplVar (spaces >> varid))
+term :: Parser Exp
+term = spaces >> (try (fmap Var (spaces >> varid))
                   <|> between (char '(') (char ')') expr
                   <?> "simple expression")
 
@@ -146,15 +149,15 @@ getHtml = do
     then mzero
     else return s
 
-element :: Parser TmplElement
+element :: Parser Element
 element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> html
   where
     literal =
-      openTag literalTag (return ()) *> fmap TmplHtml getHtml <* closeTag literalTag
+      openTag literalTag (return ()) *> fmap Html getHtml <* closeTag literalTag
 
-    print' = openTag printTag $ spaces1 >> fmap TmplPrint expr
+    print' = openTag printTag $ spaces1 >> fmap Print varid
 
-    printImpl = try (char '{' *> fmap TmplPrint expr) <* char '}'
+    printImpl = try (char '{' *> fmap Print varid) <* char '}'
 
     ifBlock = do
       e <- openTag ifTag $ spaces1 >> expr
@@ -162,7 +165,7 @@ element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> 
       elifs <- many elifBlock
       else' <- optionMaybe elseBlock
       closeTag ifTag
-      return $ TmplIf  (e, elements) elifs else'
+      return $ If  (e, elements) elifs else'
 
     elifBlock = do
       e <- openTag elifTag $ spaces1 >> expr
@@ -178,36 +181,36 @@ element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> 
       (v, e) <- openTag foreachTag $ do { spaces1
                                        ; v <- varid
                                        ; spaces >> string "in"
-                                       ; e <- expr
+                                       ; e <- spaces >> varid
                                        ; return (v, e)
                                        }
       elements <- many element
       closeTag foreachTag
-      return $ TmplForeach v e elements
+      return $ Foreach v e elements
 
     call = do
       (name, vars) <- openTag callTag $ (,) <$> (spaces1 >> varid) <*> many (spaces1 >> varid)
-      return $ TmplCall name vars
+      return $ Call name vars
       
-    html = fmap TmplHtml getHtml
+    html = fmap Html getHtml
 
-template :: Parser Tmpl
+template :: Parser Template
 template = do
   spaces
   (name, vars) <- openTag templateTag $ (,) <$> (spaces1 >> varid) <*> many (spaces1 >> varid)
   elements <- many element
   closeTag templateTag
-  return $ Tmpl name vars elements
+  return $ Template name vars elements
 
-module' :: Parser TmplModule
+module' :: Parser Module
 module' = spaces >>
           openTag moduleTag (spaces >> fmap (intercalate ".") (conid `sepBy` char '.'))
 
-parser :: Parser TmplFile
+parser :: Parser File
 parser = do
   m <- module'
   templates <- many template
-  return $ TmplFile m templates
+  return $ File m templates
 
-parseTemplates :: String -> IO (Either ParseError TmplFile)
+parseTemplates :: String -> IO (Either ParseError File)
 parseTemplates file = fmap (runP parser () file) $ readFile file
