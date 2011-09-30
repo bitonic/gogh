@@ -27,11 +27,14 @@ braces b doc a = (b <+> lbrace) $+$ indent doc $+$ (rbrace <> a)
 bracesE :: Doc -> Doc -> Doc
 bracesE b doc = braces b doc empty
 
+funCall :: Doc
+funCall = lparen <> rparen
+
 ------ Keywords ---------------------------------------------------------------
-equalsBool, equalsPlus, functionId, undefinedId, typeofId, ifId, elifId, elseId, foreachId :: Doc
-varId, returnId, notNullId, isNullId, emptyId, notId :: Doc
+equalsBool, functionId, undefinedId, typeofId, ifId, elifId, elseId, foreachId :: Doc
+varId, returnId, goghId, notNullId, isNullId, emptyId, notId, safeShowId, appendId :: Doc
+stringBuilderId, newId, toStringId :: Doc
 equalsBool = text "==="
-equalsPlus = text "+="
 functionId = text "function"
 undefinedId = text "'undefined'"
 typeofId = text "typeof"
@@ -41,20 +44,24 @@ elseId = text "else"
 foreachId = text "foreach"
 varId = text "var"
 returnId = text "return"
-notNullId = text "notNull"
-isNullId = text "isNull"
+goghId = text "Gogh"
+notNullId = dotted [goghId, text "notNull"]
+isNullId = dotted [goghId, text "isNull"]
 emptyId = text "empty"
 notId = char '!'
+safeShowId = text "safeShow"
+appendId = text "append"
+stringBuilderId = text "StringBuilder"
+newId = text "new"
+toStringId = text "toString"
 
 ------ Pretty printer ---------------------------------------------------------
 
 file :: File -> Doc
-file (File module' tmpls) = braces (lparen <> functionId <> lparen <> rparen)
-                                   (object module' $+$ vsep (map (template module') tmpls))
-                                   (rparen <> lparen <> rparen <> semi)
+file (File module' tmpls) = object module' $+$ vsep (map (template module') tmpls)
 
-contentVar :: Doc
-contentVar = text "_content"
+builderVar :: Doc
+builderVar = text "_builder"
 
 object :: Module -> Doc
 object module' = bracesE (ifId <+> parens (typeofId  <+> objName <+> equalsBool <+> undefinedId))
@@ -72,19 +79,21 @@ template module' (Template name vars elems) = braces (dotted [text module', text
                                                      semi
 
 elementsStart :: Module -> [Element] -> Doc
-elementsStart module' elems = varId <+> contentVar <+> equals <+> doubleQuotes empty <> semi $+$
+elementsStart module' elems = varId <+> builderVar <+> equals <+> builder <> semi $+$
                               elements module' elems $+$
-                              returnId <+> contentVar <> semi
+                              returnId <+> dotted [builderVar, toStringId <> funCall] <> semi
+  where
+    builder = newId <+> stringBuilderId <> funCall
 
 elements :: Module -> [Element] -> Doc
 elements module' = vsep . map (element module')
 
-ccContent :: Doc
-ccContent = contentVar <+> equalsPlus <> space
+ccContent :: Doc -> Doc
+ccContent d = dotted [builderVar, appendId <> lparen <> d <> rparen]
 
 element :: Module -> Element -> Doc
-element _ (Html s) = ccContent <> (text . show $ s) <> semi
-element _ (Print var) = ccContent <> text var <> semi
+element _ (Html s) = ccContent (text . show $ s) <> semi
+element _ (Print var) = ccContent (dotted [text var, safeShowId <> funCall]) <> semi
 element m (If if' elifs else') = block False ifId if' $+$ elifsp $+$ elsep $+$ rbrace
   where
     block rb t (e, elems) = (if rb then rbrace else empty)
@@ -97,7 +106,7 @@ element m (Foreach var generator elems) = dotted [text generator, foreachId <> p
                                           <> semi
   where
     fun = bracesE (functionId <+> parens (text var)) (elements m elems)
-element m (Call f vars) = ccContent <> dotted [text m, text f <> funArgs vars <> semi]
+element m (Call f vars) = ccContent (dotted [text m, text f <> funArgs vars]) <> semi
 
 exp :: Exp -> Doc
 exp (BinOp op e1 e2) = parens (exp e1) <+> binOp op <+> parens (exp e2)

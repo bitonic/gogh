@@ -1,67 +1,86 @@
+"use strict";
+
 // Utilities for the compiled JavaScript templates
 
-(function () {
-    // Foreach functions for arrays and objects.
-    if (typeof Array.prototype.foreach === 'undefined') {
-        Array.prototype.foreach = function (f) {
-            var i;
-            for (i = 0; i < this.length; i++) {
-                f(this[i]);
-            }
-        };
-    }
+// An utility function to build strings
+function StringBuilder() {
+    var strings = [];
 
-    if (typeof Object.prototype.foreach === 'undefined') {
-        Object.prototype.foreach = function (f) {
-            var obj = this;
-            var key;
-            for (key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    f(obj[key]);
-                }
-            }
-        };
-    }
+    return {
+        append: function (string) {
+            strings.push(string);
+        },
 
-    // "empty" functions
-    if (typeof Array.prototype.empty === 'undefined') {
-        Array.prototype.empty = function () {
-            this.length === 0;
-        };
-    }
+        toString: function () {
+            return strings.join('');
+        }
+    };
+}
 
-    if (typeof Object.prototype.empty === 'undefined') {
-        Object.prototype.empty = function() {
-            var obj = this;
-            var key;
-            for (key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    return false;
-                }
-            }
-            return true;
+// Foreach functions for arrays and objects.
+Array.prototype.foreach = function (f) {
+    var i;
+    for (i = 0; i < this.length; i++) {
+        f(this[i]);
+    }
+};
+
+Object.prototype.foreach = function (f) {
+    var key;
+    for (key in this) {
+        if (this.hasOwnProperty(key)) {
+            f(this[key]);
         }
     }
+};
 
-    // Select some keys from a dictionary
-    if (typeof Object.prototype.getKeys === 'undefined') {
-        Object.prototype.getKeys = function(source) {
-            var source = this;
-            var dest = {};
-            var i;
-            for (i; i < arguments.length; i++) {
-                dest[arguments[i]] = source[arguments[i]];
-            }
-            return dest;
+// "empty" functions
+Array.prototype.empty = function () {
+    return this.length === 0;
+};
+
+Object.prototype.empty = function () {
+    var key;
+    for (key in this) {
+        if (this.hasOwnProperty(key)) {
+            return false;
         }
     }
-    
-})();
+    return true;
+};
 
-function notNull(o) {
+// Select some keys from a dictionary
+Object.prototype.getKeys = function () {
+    var dest = {};
+    var i;
+    for (i; i < arguments.length; i++) {
+        dest[arguments[i]] = this[arguments[i]];
+    }
+    return dest;
+};
+
+// Safe show
+String.prototype.safeShow = function () {
+    return this
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/'/g, '&#39')
+        .replace(/"/g, '&quot;');
+};
+
+Number.prototype.safeShow = Number.prototype.toString;
+
+Boolean.prototype.safeShow = Boolean.prototype.toString;
+
+if (typeof Gogh === 'undefined') {
+    var Gogh = {};
+}
+
+Gogh.notNull = function (o) {
     return o !== null;
 }
 
-function isNull(o) {
+Gogh.isNull = function (o) {
     return o === null;
 }
