@@ -190,7 +190,7 @@ element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> 
     call = do
       (name, vars) <- openTag callTag $ (,) <$> (spaces1 >> varid) <*> many (spaces1 >> varid)
       return $ Call name vars
-      
+
     html = fmap Html getHtml
 
 template :: Parser Template
@@ -211,5 +211,5 @@ parser = do
   templates <- many template
   return $ File m templates
 
-parseTemplates :: String -> IO (Either ParseError File)
-parseTemplates file = fmap (runP parser () file) $ readFile file
+parseTemplates :: String -> String -> Either ParseError File
+parseTemplates fn code = runP parser () fn code

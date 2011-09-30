@@ -6,7 +6,7 @@ import Text.PrettyPrint hiding (braces)
 import Text.Gogh.Compiler.Parser
 
 printTemplates :: File -> String
-printTemplates = render . file
+printTemplates = (++ "\n") . render . file
 
 ------ Utility functions ------------------------------------------------------
 indent :: Doc -> Doc

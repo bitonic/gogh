@@ -7,7 +7,7 @@ import Prelude hiding (exp)
 import qualified Text.Gogh.Compiler.Parser as P
 
 printTemplates :: P.File -> String
-printTemplates = prettyPrint . templates
+printTemplates = (++ "\n") . prettyPrint . templates
 
 ------ Utility functions ------------------------------------------------------
 fun :: String -> String -> Exp
