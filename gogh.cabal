@@ -30,4 +30,5 @@ Executable gogh
                       , mtl
                       , haskell-src-exts
                       , pretty
+                      , text
   GHC-Options:          -Wall -fno-warn-unused-do-bind

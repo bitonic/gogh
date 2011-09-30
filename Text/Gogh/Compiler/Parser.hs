@@ -178,11 +178,11 @@ element = literal <|> print' <|> ifBlock <|> foreach <|> call <|> printImpl <|> 
 
     foreach = do
       (v, e) <- openTag foreachTag $ do { spaces1
-                                       ; v <- varid
-                                       ; spaces >> string "in"
-                                       ; e <- spaces >> varid
-                                       ; return (v, e)
-                                       }
+                                        ; v <- varid
+                                        ; spaces >> string "in"
+                                        ; e <- spaces >> varid
+                                        ; return (v, e)
+                                        }
       elements <- many element
       closeTag foreachTag
       return $ Foreach v e elements

@@ -3,7 +3,7 @@ module Text.Gogh.Compiler.CodeGen.Haskell (printTemplates) where
 import Language.Haskell.Exts.Pretty
 import Language.Haskell.Exts.Syntax
 import Prelude hiding (exp)
-  
+
 import qualified Text.Gogh.Compiler.Parser as P
 
 printTemplates :: P.File -> String
@@ -20,11 +20,12 @@ pat :: [String] -> [Pat]
 pat = map (PVar . Ident)
 
 ------ Setup and constants ----------------------------------------------------
-showFun, concatFun, emptyFun, foreachFun :: Exp
+showFun, concatFun, emptyFun, foreachFun, packFun :: Exp
 showFun = fun "Text.Gogh.SafeShow" "safeShow"
-concatFun = fun "Data.Monoid" "mconcat"
+concatFun = fun "Data.Text" "concat"
 emptyFun = fun "Data.Monoid" "mzero"
 foreachFun = fun "Text.Gogh.Compiler.Utils" "foreach"
+packFun = fun "Data.Text" "pack"
 
 -- ^ We don't need the location, since we're just generating code.
 location :: SrcLoc
@@ -32,10 +33,10 @@ location = undefined
 
 imports :: [ImportDecl]
 imports = map mod' [ "Data.Eq"
-                   , "Data.Functor"
                    , "Data.Maybe"
                    , "Data.Monoid"
                    , "Data.Ord"
+                   , "Data.Text"
                    , "Text.Gogh.Compiler.Utils"
                    , "Text.Gogh.SafeShow"
                    ]
@@ -57,7 +58,7 @@ elements :: [P.Element] -> Exp
 elements es = App concatFun (List (map element es))
 
 element :: P.Element -> Exp
-element (P.Html s) = Lit $ String s
+element (P.Html s) = App packFun (Lit $ String s)
 element (P.Print v) = App showFun (unQual v)
 element (P.If (e, elems) elifs else') = If (exp e) (elements elems) (elifsExp elifs)
   where

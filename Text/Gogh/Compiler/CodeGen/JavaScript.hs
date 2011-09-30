@@ -51,7 +51,7 @@ notId = char '!'
 file :: File -> Doc
 file (File module' tmpls) = braces (lparen <> functionId <> lparen <> rparen)
                                    (object module' $+$ vsep (map (template module') tmpls))
-                                   (rparen <> rparen <> lparen <> semi)
+                                   (rparen <> lparen <> rparen <> semi)
 
 contentVar :: Doc
 contentVar = text "_content"

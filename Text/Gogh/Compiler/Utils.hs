@@ -1,4 +1,5 @@
-module Text.Gogh.Compiler.Utils where
+-- | This module contains functions that are useful when compiling the templates to Haskell.
+module Text.Gogh.Compiler.Utils (foreach) where
 
 import Data.Foldable (Foldable, foldr)
 import Prelude hiding (foldr)
