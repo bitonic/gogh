@@ -15,8 +15,8 @@ usage = error $ "\n" ++
         "Usage: gogh --haskell infile [-o outfile]\n" ++
         "       gogh --javascript [infiles] [-o outfile] -- Minimun 1 input file"
 
-getArg :: String                 -- ^ The argument to search for
-         -> [String]            -- ^ The list of args
+getArg :: String                      -- ^ The argument to search for
+         -> [String]                 -- ^ The list of args
          -> Maybe (String, [String]) -- ^ The value and the remaining args
 getArg arg args = go args
   where
@@ -44,5 +44,5 @@ main = do
               | otherwise      = error $ show hsargs
       javascript = mapM (\fn -> readFile fn >>= handleError . parseTemplates fn) jsargs >>=
                    hPutStr output . concatMap JS.printTemplates
-  if hs then haskell else (if js then javascript else usage)
+  if hs then haskell else if js then javascript else usage
   hClose output
